@@ -1,6 +1,6 @@
 <script>
 	import { onMount, onDestroy } from 'svelte';
-	import logoSvg from '$lib/images/logo.svg';
+	import logoSvg from '$lib/images/logo.png';
   
 	let sketchElement;
 	let p5Instance;
