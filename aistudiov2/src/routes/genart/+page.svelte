@@ -5,6 +5,14 @@
 	let sketchElement;
 	let p5Instance;
 	let videoElement;
+	let canvasElement;
+	let ctx;
+	let previousImageData;
+	let movementIntensity = 0;
+	let frameCount = 0;
+	const FRAME_SKIP = 10; // 10フレームごとに処理
+	const MOVEMENT_THRESHOLDS = [2, 5, 10]; // 3つの閾値で4段階に分ける
+	let heartRateMultiplier = 0.5; // 初期値は0.5倍速
   
 	onMount(async () => {
 	  const p5 = await import('p5');
@@ -14,6 +22,7 @@
 		let maxNodes = 200;
 		let maxDistance = 100;
 		let heartRate = 0;
+		const baseHeartRateSpeed = 0.005;
   
 		p.setup = () => {
 		  p.createCanvas(p.windowWidth, p.windowHeight);
@@ -31,7 +40,7 @@
 		  p.noFill();
   
 		  let heartbeat = (p.sin(heartRate * p.TWO_PI) + 1) / 2;
-		  heartRate += 0.005;
+		  heartRate += baseHeartRateSpeed * heartRateMultiplier;
   
 		  nodes.forEach(node => {
 			node.position.x = p.map(p.noise(node.noiseOffset.x + heartRate), 0, 1, 0, p.width);
@@ -64,11 +73,56 @@
 		const stream = await navigator.mediaDevices.getUserMedia({ video: true });
 		if (videoElement) {
 		  videoElement.srcObject = stream;
+		  videoElement.onloadedmetadata = () => {
+			canvasElement.width = videoElement.videoWidth;
+			canvasElement.height = videoElement.videoHeight;
+			ctx = canvasElement.getContext('2d', { willReadFrequently: true });
+			requestAnimationFrame(processFrame);
+		  };
 		}
 	  } catch (err) {
 		console.error("ウェブカメラへのアクセスに失敗しました:", err);
 	  }
 	});
+  
+	function processFrame() {
+	  frameCount++;
+	  if (videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
+		ctx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+		
+		if (frameCount % FRAME_SKIP === 0) {
+		  const imageData = ctx.getImageData(0, 0, canvasElement.width, canvasElement.height);
+		  
+		  if (previousImageData) {
+			const diff = pixelDiff(imageData.data, previousImageData.data);
+			const normalizedDiff = diff / (canvasElement.width * canvasElement.height);
+			
+			// 4段階の動き検出
+			if (normalizedDiff < MOVEMENT_THRESHOLDS[0]) {
+			  heartRateMultiplier = 0.5; // 非常に遅い
+			} else if (normalizedDiff < MOVEMENT_THRESHOLDS[1]) {
+			  heartRateMultiplier = 0.8; // 遅い
+			} else if (normalizedDiff < MOVEMENT_THRESHOLDS[2]) {
+			  heartRateMultiplier = 1.0; // 通常
+			} else {
+			  heartRateMultiplier = 1.2; // 速い
+			}
+		  }
+		  
+		  previousImageData = imageData;
+		}
+	  }
+	  
+	  requestAnimationFrame(processFrame);
+	}
+  
+	function pixelDiff(data1, data2) {
+	  let diff = 0;
+	  for (let i = 0; i < data1.length; i += 64) { // サンプリングレートを下げる
+		diff += Math.abs(data1[i] - data2[i]);
+	  }
+	  return diff * 16; // サンプリングレートの調整を補正
+	}
   
 	onDestroy(() => {
 	  if (p5Instance) {
@@ -86,6 +140,7 @@
 	<div class="genAiLayer" bind:this={sketchElement}></div>
 	<div class="webCamLayer">
 	  <video bind:this={videoElement} autoplay playsinline></video>
+	  <canvas bind:this={canvasElement} style="display: none;"></canvas>
 	</div>
 	<div class="logoLayer">
 	  <img src={logoSvg} alt="Logo" />
@@ -129,7 +184,7 @@
 	  height: 100%;
 	  object-fit: cover;
 	  opacity: 0.6;
-	  filter: brightness(180%) contrast(80%); /* 映像をより白っぽくする */
+	  filter: brightness(200%) contrast(50%) saturate(50%);
 	}
   
 	.logoLayer {
