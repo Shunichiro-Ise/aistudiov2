@@ -99,9 +99,9 @@
 			
 			// 4段階の動き検出
 			if (normalizedDiff < MOVEMENT_THRESHOLDS[0]) {
-			  heartRateMultiplier = 0.5; // 非常に遅い
+			  heartRateMultiplier = 0.3; // 非常に遅い
 			} else if (normalizedDiff < MOVEMENT_THRESHOLDS[1]) {
-			  heartRateMultiplier = 0.8; // 遅い
+			  heartRateMultiplier = 0.6; // 遅い
 			} else if (normalizedDiff < MOVEMENT_THRESHOLDS[2]) {
 			  heartRateMultiplier = 1.0; // 通常
 			} else {
