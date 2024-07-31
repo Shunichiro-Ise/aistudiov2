@@ -1,6 +1,7 @@
 <script>
 	import { onMount, onDestroy } from 'svelte';
 	import logoSvg from '$lib/images/aistudio.svg';
+	import audioSrc from '$lib/Evolving_Code.mp3';
   
 	let sketchElement;
 	let p5Instance;
@@ -12,8 +13,44 @@
 	const FRAME_SKIP = 10;
 	const MOVEMENT_THRESHOLDS = [2, 5, 10];
 	let heartRateMultiplier = 0.5;
+	let audioElement;
+	let isAudioPlaying = false;
+	let isAppStarted = false;
   
 	onMount(async () => {
+	  // オーディオの設定
+	  if (audioElement) {
+		audioElement.src = audioSrc;
+		audioElement.loop = true;
+		console.log("Audio element set up with source:", audioSrc);
+	  } else {
+		console.error("Audio element not found");
+	  }
+	});
+
+	async function startApp() {
+	  isAppStarted = true;
+	  await playAudio();
+	  initializeApp();
+	}
+
+	async function playAudio() {
+	  if (audioElement && !isAudioPlaying) {
+		try {
+		  await audioElement.play();
+		  console.log("Audio started playing");
+		  isAudioPlaying = true;
+		} catch (error) {
+		  console.error("音楽の再生に失敗しました:", error);
+		}
+	  } else if (isAudioPlaying) {
+		console.log("Audio is already playing");
+	  } else {
+		console.error("Audio element not initialized");
+	  }
+	}
+
+	async function initializeApp() {
 	  const p5 = await import('p5');
 	  
 	  const sketch = (p) => {
@@ -23,14 +60,14 @@
 		let heartRate = 0;
 		const baseHeartRateSpeed = 0.005;
 
-		// 色と大きさの設定
-		const BACKGROUND_COLOR = '#000000';  // 黒色
-		const BACKGROUND_ALPHA = 100;  // 完全に不透明 (0-255の範囲)
-		const NODE_SIZE = 6;
-		const NODE_COLOR = '#FFFFFF';  // 赤色
+		// 色と大きさの設定 TCS Blue:#4E84C4 TCS Yellow:#F0B34F
+		const BACKGROUND_COLOR = '#000000';  
+		const BACKGROUND_ALPHA = 255;  // 不透明度 (0-255の範囲)
+		const NODE_SIZE = 8;
+		const NODE_COLOR = '#2F9BFF';  // 
 		const EDGE_WEIGHT = 1;
 		const EDGE_COLOR = '#FFFFFF';  // 緑色
-		const EDGE_ALPHA = 100;  // 約40%の透明度 (0-255の範囲)
+		const EDGE_ALPHA = 100;  // 不透明度 (0-255の範囲)
   
 		p.setup = () => {
 		  p.createCanvas(p.windowWidth, p.windowHeight);
@@ -111,7 +148,7 @@
 	  } catch (err) {
 		console.error("ウェブカメラへのアクセスに失敗しました:", err);
 	  }
-	});
+	}
   
 	function processFrame() {
 	  frameCount++;
@@ -161,21 +198,36 @@
 		const tracks = videoElement.srcObject.getTracks();
 		tracks.forEach(track => track.stop());
 	  }
+	  // オーディオの停止
+	  if (audioElement) {
+		audioElement.pause();
+		audioElement.currentTime = 0;
+		isAudioPlaying = false;
+		console.log("Audio stopped");
+	  }
 	});
-  </script>
+</script>
   
-  <div class="layers-container">
-	<div class="genAiLayer" bind:this={sketchElement}></div>
-	<div class="webCamLayer">
-	  <video bind:this={videoElement} autoplay playsinline></video>
-	  <canvas bind:this={canvasElement} style="display: none;"></canvas>
-	</div>
-	<div class="logoLayer">
-	  <img src={logoSvg} alt="Logo" />
-	</div>
-  </div>
+<div class="layers-container">
+	{#if !isAppStarted}
+		<div class="start-screen">
+			<h1>Welcome to the Interactive Visualization</h1>
+			<button on:click={startApp}>Start Experience</button>
+		</div>
+	{:else}
+		<div class="genAiLayer" bind:this={sketchElement}></div>
+		<div class="webCamLayer">
+		<video bind:this={videoElement} autoplay playsinline></video>
+		<canvas bind:this={canvasElement} style="display: none;"></canvas>
+		</div>
+		<div class="logoLayer">
+		<img src={logoSvg} alt="Logo" />
+		</div>
+	{/if}
+	<audio bind:this={audioElement}></audio>
+</div>
   
-  <style>
+<style>
 	:global(body) {
 	  margin: 0;
 	  padding: 0;
@@ -190,6 +242,31 @@
 	  height: 100%;
 	}
   
+	.start-screen {
+	  display: flex;
+	  flex-direction: column;
+	  justify-content: center;
+	  align-items: center;
+	  height: 100%;
+	  background-color: #000000;
+	  color: #FFFFFF;
+	}
+
+	.start-screen h1 {
+	  font-size: 2em;
+	  margin-bottom: 20px;
+	}
+
+	.start-screen button {
+	  padding: 10px 20px;
+	  font-size: 1.2em;
+	  cursor: pointer;
+	  background-color: #2F9BFF;
+	  color: #FFFFFF;
+	  border: none;
+	  border-radius: 5px;
+	}
+
 	.genAiLayer {
 	  position: absolute;
 	  width: 100%;
@@ -199,12 +276,13 @@
   
 	.webCamLayer {
 	  position: absolute;
-	  top: 20%;
-	  left: 20%;
-	  width: 60%;
-	  height: 60%;
+	  top: 17.5%;
+	  left: 17.5%;
+	  width: 65%;
+	  height: 65%;
 	  z-index: 2;
 	  overflow: hidden;
+	  border-radius: 20px;
 	}
   
 	.webCamLayer video {
@@ -233,4 +311,4 @@
 	  object-fit: contain;
 	  filter: brightness(0) invert(1);
 	}
-  </style>
+</style>
