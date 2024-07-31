@@ -1,6 +1,6 @@
 <script>
 	import { onMount, onDestroy } from 'svelte';
-	import logoSvg from '$lib/images/logo.png';
+	import logoSvg from '$lib/images/aistudio.svg';
   
 	let sketchElement;
 	let p5Instance;
@@ -8,21 +8,29 @@
 	let canvasElement;
 	let ctx;
 	let previousImageData;
-	let movementIntensity = 0;
 	let frameCount = 0;
-	const FRAME_SKIP = 10; // 10フレームごとに処理
-	const MOVEMENT_THRESHOLDS = [2, 5, 10]; // 3つの閾値で4段階に分ける
-	let heartRateMultiplier = 0.5; // 初期値は0.5倍速
+	const FRAME_SKIP = 10;
+	const MOVEMENT_THRESHOLDS = [2, 5, 10];
+	let heartRateMultiplier = 0.5;
   
 	onMount(async () => {
 	  const p5 = await import('p5');
 	  
 	  const sketch = (p) => {
 		let nodes = [];
-		let maxNodes = 200;
-		let maxDistance = 100;
+		let maxNodes = 175;
+		let maxDistance = 175;
 		let heartRate = 0;
 		const baseHeartRateSpeed = 0.005;
+
+		// 色と大きさの設定
+		const BACKGROUND_COLOR = '#000000';  // 黒色
+		const BACKGROUND_ALPHA = 100;  // 完全に不透明 (0-255の範囲)
+		const NODE_SIZE = 6;
+		const NODE_COLOR = '#FFFFFF';  // 赤色
+		const EDGE_WEIGHT = 1;
+		const EDGE_COLOR = '#FFFFFF';  // 緑色
+		const EDGE_ALPHA = 100;  // 約40%の透明度 (0-255の範囲)
   
 		p.setup = () => {
 		  p.createCanvas(p.windowWidth, p.windowHeight);
@@ -35,30 +43,50 @@
 		};
   
 		p.draw = () => {
-		  p.background(0);
-		  p.stroke(255);
-		  p.noFill();
-  
-		  let heartbeat = (p.sin(heartRate * p.TWO_PI) + 1) / 2;
-		  heartRate += baseHeartRateSpeed * heartRateMultiplier;
-  
-		  nodes.forEach(node => {
-			node.position.x = p.map(p.noise(node.noiseOffset.x + heartRate), 0, 1, 0, p.width);
-			node.position.y = p.map(p.noise(node.noiseOffset.y + heartRate), 0, 1, 0, p.height);
-  
-			p.fill(255);
-			p.ellipse(node.position.x, node.position.y, 4, 4);
-		  });
-  
-		  p.stroke(255, 100);
-		  for (let i = 0; i < nodes.length; i++) {
-			for (let j = i + 1; j < nodes.length; j++) {
-			  let distance = p.dist(nodes[i].position.x, nodes[i].position.y, nodes[j].position.x, nodes[j].position.y);
-			  if (distance < maxDistance) {
-				p.line(nodes[i].position.x, nodes[i].position.y, nodes[j].position.x, nodes[j].position.y);
-			  }
+			// 背景色の設定
+			const bgColor = p.color(BACKGROUND_COLOR);
+			bgColor.setAlpha(BACKGROUND_ALPHA);
+			p.background(bgColor);
+
+			p.noStroke();
+
+			let heartbeat = (p.sin(heartRate * p.TWO_PI) + 1) / 2;
+			heartRate += baseHeartRateSpeed * heartRateMultiplier;
+
+			const mappingWidth = p.width * 2;
+			const mappingHeight = p.height * 2;
+			
+			const offsetX = (mappingWidth - p.width) / 2;
+			const offsetY = (mappingHeight - p.height) / 2;
+
+			nodes.forEach(node => {
+				node.position.x = p.map(p.noise(node.noiseOffset.x + heartRate), 0, 1, -offsetX, mappingWidth - offsetX);
+				node.position.y = p.map(p.noise(node.noiseOffset.y + heartRate), 0, 1, -offsetY, mappingHeight - offsetY);
+
+				if (node.position.x >= 0 && node.position.x <= p.width && 
+					node.position.y >= 0 && node.position.y <= p.height) {
+				p.fill(NODE_COLOR);
+				p.ellipse(node.position.x, node.position.y, NODE_SIZE, NODE_SIZE);
+				}
+			});
+
+			p.strokeWeight(EDGE_WEIGHT);
+			const edgeColor = p.color(EDGE_COLOR);
+			edgeColor.setAlpha(EDGE_ALPHA);
+			p.stroke(edgeColor);
+			for (let i = 0; i < nodes.length; i++) {
+				for (let j = i + 1; j < nodes.length; j++) {
+				if (nodes[i].position.x >= 0 && nodes[i].position.x <= p.width && 
+					nodes[i].position.y >= 0 && nodes[i].position.y <= p.height &&
+					nodes[j].position.x >= 0 && nodes[j].position.x <= p.width && 
+					nodes[j].position.y >= 0 && nodes[j].position.y <= p.height) {
+					let distance = p.dist(nodes[i].position.x, nodes[i].position.y, nodes[j].position.x, nodes[j].position.y);
+					if (distance < maxDistance) {
+					p.line(nodes[i].position.x, nodes[i].position.y, nodes[j].position.x, nodes[j].position.y);
+					}
+				}
+				}
 			}
-		  }
 		};
   
 		p.windowResized = () => {
@@ -103,7 +131,7 @@
 			} else if (normalizedDiff < MOVEMENT_THRESHOLDS[1]) {
 			  heartRateMultiplier = 0.6; // 遅い
 			} else if (normalizedDiff < MOVEMENT_THRESHOLDS[2]) {
-			  heartRateMultiplier = 1.0; // 通常
+			  heartRateMultiplier = 0.9; // 通常
 			} else {
 			  heartRateMultiplier = 1.2; // 速い
 			}
@@ -200,8 +228,9 @@
 	}
   
 	.logoLayer img {
-	  max-width: 100%;
-	  max-height: 100%;
+	  max-width: 70%;
+	  max-height: 70%;
 	  object-fit: contain;
+	  filter: brightness(0) invert(1);
 	}
   </style>
